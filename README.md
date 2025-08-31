@@ -3,7 +3,7 @@ This project presents a 3D digital twin of an industrial chopper bowl cutter, a 
 
 An industrial chopper bowl cutter is a heavy-duty food processing machine used in large-scale food production. It efficiently chops, mixes, grinds, and emulsifies various ingredients, such as meat and vegetables, into uniform textures. The machine operates with a powerful motor that spins a set of razor-sharp blades at high speeds inside a rotating stainless-steel bowl. The core function relies on these two components, which are often subject to wear and tear due to high-speed operation and continuous use.
 
-## Features for a GitHub Repository
+## Features
 This 3D digital twin offers an integrated solution for monitoring, analyzing, and predicting the health of the industrial chopper bowl cutter, with a focus on its critical motor and blade components. It combines an interactive virtual model with advanced data-driven analytics and inventory management.
 
 ### 📊 Data Analysis & Preprocessing
