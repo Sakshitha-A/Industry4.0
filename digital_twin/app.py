@@ -32,108 +32,95 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Database initialization - NO NEED FOR MANUAL SQLITE COMMAND!
+# Database initialization
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
     
-    # Read and execute the schema.sql file
-    try:
-        with open('schema.sql', 'r') as f:
-            sql_script = f.read()
-        cursor.executescript(sql_script)
-        conn.commit()
-        print("✅ Database created successfully!")
-    except Exception as e:
-        print(f"❌ Error creating database: {e}")
-        # If schema.sql doesn't exist, create tables directly
-        try:
-            # Create machines table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS machines (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT UNIQUE NOT NULL,
-                    name TEXT NOT NULL,
-                    type TEXT NOT NULL CHECK(type IN ('motor', 'blade')),
-                    installation_date DATE DEFAULT CURRENT_DATE,
-                    manufacturer TEXT,
-                    model TEXT,
-                    location TEXT,
-                    status TEXT DEFAULT 'operational' CHECK(status IN ('operational', 'maintenance', 'decommissioned'))
-                )
-            ''')
-            
-            # Create motor_details table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS motor_details (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT NOT NULL,
-                    max_current_phase_a FLOAT,
-                    max_current_phase_b FLOAT,
-                    max_current_phase_c FLOAT,
-                    max_power_consumption FLOAT,
-                    max_temperature FLOAT,
-                    max_vibration FLOAT,
-                    nominal_speed FLOAT,
-                    FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
-                )
-            ''')
-            
-            # Create blade_details table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS blade_details (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT NOT NULL,
-                    max_vibration FLOAT,
-                    max_torque FLOAT,
-                    max_speed FLOAT,
-                    max_noise FLOAT,
-                    max_temperature FLOAT,
-                    material TEXT,
-                    length FLOAT,
-                    width FLOAT,
-                    FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
-                )
-            ''')
-            
-            # Create sensor_readings table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS sensor_readings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    current_phase_a FLOAT,
-                    current_phase_b FLOAT,
-                    current_phase_c FLOAT,
-                    power_consumption FLOAT,
-                    power_factor FLOAT,
-                    vibration FLOAT,
-                    temperature FLOAT,
-                    speed FLOAT,
-                    torque FLOAT,
-                    noise FLOAT,
-                    FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
-                )
-            ''')
-            
-            # Create predictions table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS predictions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    health_status TEXT,
-                    rul_hours FLOAT,
-                    confidence FLOAT,
-                    maintenance_required BOOLEAN,
-                    FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
-                )
-            ''')
-            
-            conn.commit()
-            print("✅ Database tables created successfully!")
-        except Exception as e:
-            print(f"❌ Error creating tables: {e}")
+    # Create machines table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS machines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('motor', 'blade')),
+            installation_date DATE DEFAULT CURRENT_DATE,
+            manufacturer TEXT,
+            model TEXT,
+            location TEXT,
+            status TEXT DEFAULT 'operational' CHECK(status IN ('operational', 'maintenance', 'decommissioned'))
+        )
+    ''')
+    
+    # Create motor_details table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS motor_details (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT NOT NULL,
+            max_current_phase_a FLOAT,
+            max_current_phase_b FLOAT,
+            max_current_phase_c FLOAT,
+            max_power_consumption FLOAT,
+            max_temperature FLOAT,
+            max_vibration FLOAT,
+            nominal_speed FLOAT,
+            FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create blade_details table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS blade_details (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT NOT NULL,
+            max_vibration FLOAT,
+            max_torque FLOAT,
+            max_speed FLOAT,
+            max_noise FLOAT,
+            max_temperature FLOAT,
+            material TEXT,
+            length FLOAT,
+            width FLOAT,
+            FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create sensor_readings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sensor_readings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            current_phase_a FLOAT,
+            current_phase_b FLOAT,
+            current_phase_c FLOAT,
+            power_consumption FLOAT,
+            power_factor FLOAT,
+            vibration FLOAT,
+            temperature FLOAT,
+            speed FLOAT,
+            torque FLOAT,
+            noise FLOAT,
+            FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create predictions table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            health_status TEXT,
+            rul_hours FLOAT,
+            confidence FLOAT,
+            maintenance_required BOOLEAN,
+            FOREIGN KEY (machine_id) REFERENCES machines(machine_id) ON DELETE CASCADE
+        )
+    ''')
+    
+    conn.commit()
+    print("✅ Database initialized successfully!")
 
 # Load ML models
 motor_models = {}
@@ -215,10 +202,24 @@ class PredictionResponse(BaseModel):
     color_code: str
     maintenance_required: bool
 
+# NEW: API endpoint to get machine type for 3D model loading
+@app.get("/machines/{machine_id}/type")
+async def get_machine_type(machine_id: str):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT type FROM machines WHERE machine_id = ?", (machine_id,))
+    machine = cursor.fetchone()
+    
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+    
+    return {"machine_id": machine_id, "type": machine['type']}
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():
-    init_db()  # This will create the database automatically
+    init_db()
     load_models()
 
 # Routes
@@ -275,9 +276,63 @@ async def get_machines():
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT * FROM machines ORDER BY installation_date DESC")
-    machines = [dict(row) for row in cursor.fetchall()]
+    cursor.execute("""
+        SELECT m.*, 
+               COALESCE((SELECT health_status FROM predictions 
+                         WHERE machine_id = m.machine_id 
+                         ORDER BY timestamp DESC LIMIT 1), 'Unknown') as current_status,
+               COALESCE((SELECT rul_hours FROM predictions 
+                         WHERE machine_id = m.machine_id 
+                         ORDER BY timestamp DESC LIMIT 1), 0) as current_rul
+        FROM machines m
+        ORDER BY m.installation_date DESC
+    """)
+    
+    machines = []
+    for row in cursor.fetchall():
+        machine = dict(row)
+        machines.append(machine)
+    
     return machines
+
+@app.get("/machines/{machine_id}", response_model=Dict[str, Any])
+async def get_machine(machine_id: str):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM machines WHERE machine_id = ?", (machine_id,))
+    machine = cursor.fetchone()
+    
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+    
+    result = dict(machine)
+    
+    # Get machine-specific details
+    if result['type'] == 'motor':
+        cursor.execute("SELECT * FROM motor_details WHERE machine_id = ?", (machine_id,))
+        details = cursor.fetchone()
+        if details:
+            result['details'] = dict(details)
+    else:
+        cursor.execute("SELECT * FROM blade_details WHERE machine_id = ?", (machine_id,))
+        details = cursor.fetchone()
+        if details:
+            result['details'] = dict(details)
+    
+    # Get latest prediction
+    cursor.execute("""
+        SELECT * FROM predictions 
+        WHERE machine_id = ? 
+        ORDER BY timestamp DESC 
+        LIMIT 1
+    """, (machine_id,))
+    
+    prediction = cursor.fetchone()
+    if prediction:
+        result['latest_prediction'] = dict(prediction)
+    
+    return result
 
 @app.post("/predict/", response_model=PredictionResponse)
 async def predict_health(sensor_data: SensorData):
@@ -388,6 +443,21 @@ async def predict_health(sensor_data: SensorData):
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
+
+@app.get("/machines/{machine_id}/history")
+async def get_prediction_history(machine_id: str, limit: int = 10):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM predictions 
+        WHERE machine_id = ? 
+        ORDER BY timestamp DESC 
+        LIMIT ?
+    """, (machine_id, limit))
+    
+    history = [dict(row) for row in cursor.fetchall()]
+    return history
 
 def get_visualization_properties(health_status: str, rul_hours: float) -> tuple:
     """Determine color and maintenance requirements"""
