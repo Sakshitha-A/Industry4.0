@@ -120,7 +120,7 @@ def init_db():
     ''')
     
     conn.commit()
-    print("✅ Database initialized successfully!")
+    print("Database initialized successfully!")
 
 # Load ML models
 motor_models = {}
@@ -461,10 +461,14 @@ async def get_prediction_history(machine_id: str, limit: int = 10):
 
 def get_visualization_properties(health_status: str, rul_hours: float) -> tuple:
     """Determine color and maintenance requirements"""
-    if health_status == "Critical" or rul_hours < 24:
+    if health_status == "Sharp":
+        return "#28a745", False
+    if health_status == "Critical" or rul_hours < 24 or health_status == "Crack Detected" and health_status != "Sharp":
         return "#dc3545", True  # Red - Immediate maintenance
-    elif health_status == "Warning" or rul_hours < 168:  # 1 week
-        return "#ffc107", True   # Yellow - Schedule maintenance
+    elif health_status == "Warning" or rul_hours < 300 or health_status == "Major Wear" and health_status != "Sharp":
+        return "#ff7f00", True   # Orange - Schedule maintenance
+    elif health_status != "Normal" or rul_hours < 700 or health_status == "Minor Wear" and health_status != "Sharp":
+        return "#ffc107", True   # Yellow - Service needed
     else:
         return "#28a745", False  # Green - No maintenance needed
 
